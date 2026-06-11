@@ -70,16 +70,8 @@ const connectWithRetry = async (retries = 5, delay = 2000) => {
 };
 
 // Wait for MongoDB to connect before starting the server
-// Connect MongoDB
 await connectWithRetry();
-
-// Seed data safely
-try {
-  await autoSeed();
-  console.log('✅ Seeder completed');
-} catch (error) {
-  console.error('⚠️ Seeder failed:', error.message);
-}
+await autoSeed();
 
 // Routes
 app.use('/api/products', productRoutes);
@@ -90,46 +82,34 @@ app.use('/api/store', storeRoutes);
 app.use('/api/pharma', pharmaRoutes);
 app.use('/api/auth', authRoutes);
 
-// Root route
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Akshaygun Backend Running'
-  });
-});
-
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    status: 'Server is running'
-  });
+  res.json({ status: 'Server is running' });
 });
 
-// React build (only if frontend exists)
+// Serve the production React build from the same Hostinger Node app.
 if (process.env.NODE_ENV === 'production') {
-  const clientDistPath = path.resolve(
-    __dirname,
-    '../frontend/dist'
-  );
+  const clientDistPath = path.resolve(__dirname, '../frontend/dist');
 
-  try {
-    app.use(express.static(clientDistPath));
+  app.use(express.static(clientDistPath));
 
-    app.get('*', (req, res) => {
-      res.sendFile(
-        path.join(clientDistPath, 'index.html')
-      );
-    });
-  } catch (err) {
-    console.warn(
-      'Frontend build not found. Skipping static hosting.'
-    );
-  }
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
 }
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`Port ${PORT} is in use, trying ${PORT + 1}...`);
+    const newPort = PORT + 1;
+    app.listen(newPort, () => {
+      console.log(`Server running on port ${newPort}`);
+    });
+  } else {
+    throw err;
+  }
 });
