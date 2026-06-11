@@ -9,6 +9,8 @@ import {
   X,
   Sparkles,
   ChevronRight,
+  LogIn,
+ 
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -271,69 +273,166 @@ const Navbar = ({ cartCount, wishlistCount }) => {
         </div>
       </header>
 
-      {/* MOBILE MENU */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.25 }}
-            className="fixed inset-x-0 top-14 z-40 border-b border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur-xl lg:hidden"
-          >
-            <div className="space-y-2">
-              {navItems.map((item, index) => (
-                <motion.div
-                  key={item.to}
-                  initial={{ opacity: 0, x: -15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{
-                    delay: index * 0.05,
-                  }}
-                >
-                  <NavLink
-                    to={item.to}
-                    onClick={() => setIsOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-300 ${
-                        isActive
-                          ? 'bg-gradient-to-r from-emerald-700 to-lime-500 text-white'
-                          : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                      }`
-                    }
-                  >
-                    {item.label}
+     {/* MOBILE MENU */}
+<AnimatePresence>
+  {isOpen && (
+    <>
+      {/* Overlay */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setIsOpen(false)}
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+      />
 
-                    <ChevronRight size={16} />
-                  </NavLink>
-                </motion.div>
-              ))}
-            </div>
+      {/* Drawer */}
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{
+          type: 'spring',
+          stiffness: 280,
+          damping: 28,
+        }}
+        className="fixed right-0 top-0 z-50 h-screen w-[88%] max-w-sm overflow-y-auto bg-white shadow-2xl lg:hidden"
+      >
+        {/* Header */}
+        <div className="sticky top-0 border-b bg-white p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-black text-emerald-700">
+                Akshaygun
+              </h2>
 
-            {/* MOBILE CATEGORIES */}
-            <div className="mt-5">
-              <p className="mb-3 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                Trending Categories
+              <p className="text-xs text-slate-500">
+                Pharma Store
               </p>
-
-              <div className="grid grid-cols-2 gap-2">
-                {quickCategories.map((category) => (
-                  <Link
-                    key={category}
-                    to={`/products?category=${encodeURIComponent(
-                      category
-                    )}`}
-                    onClick={() => setIsOpen(false)}
-                    className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-                  >
-                    {category}
-                  </Link>
-                ))}
-              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            <button
+              onClick={() => setIsOpen(false)}
+              className="rounded-xl bg-slate-100 p-2"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Account Card */}
+        <div className="m-4 rounded-3xl bg-gradient-to-r from-emerald-600 to-lime-500 p-5 text-white">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full bg-white/20 p-3">
+              <User size={24} />
+            </div>
+
+            <div>
+              <h3 className="font-bold">
+                Welcome User
+              </h3>
+
+              <p className="text-black/80 text-sm">
+                Login to manage account
+              </p>
+            </div>
+          </div>
+
+          <Link
+            to="/account"
+            onClick={() => setIsOpen(false)}
+            className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-black py-3 font-bold text-emerald-700"
+          >
+            <LogIn size={18} />
+            My Account
+          </Link>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-3 px-4">
+          <Link
+            to="/wishlist"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center gap-2 rounded-2xl border p-4 shadow-sm"
+          >
+            <Heart className="text-pink-600" />
+            Wishlist
+          </Link>
+
+          <Link
+            to="/cart"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center gap-2 rounded-2xl border p-4 shadow-sm"
+          >
+            <ShoppingBag className="text-emerald-600" />
+            Cart
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <div className="mt-6 px-4">
+          <p className="mb-3 text-xs font-black uppercase tracking-widest text-slate-400">
+            Navigation
+          </p>
+
+          <div className="space-y-2">
+            {navItems.map((item, index) => (
+              <motion.div
+                key={item.to}
+                initial={{
+                  opacity: 0,
+                  x: 30,
+                }}
+                animate={{
+                  opacity: 1,
+                  x: 0,
+                }}
+                transition={{
+                  delay: index * 0.05,
+                }}
+              >
+                <NavLink
+                  to={item.to}
+                  onClick={() => setIsOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between rounded-2xl px-4 py-3 font-semibold transition-all ${
+                      isActive
+                        ? 'bg-gradient-to-r from-emerald-700 to-lime-500 text-white'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`
+                  }
+                >
+                  {item.label}
+                  <ChevronRight size={18} />
+                </NavLink>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Categories */}
+        <div className="mt-8 px-4 pb-8">
+          <p className="mb-3 text-xs font-black uppercase tracking-widest text-slate-400">
+            Popular Categories
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            {quickCategories.map((category) => (
+              <Link
+                key={category}
+                to={`/products?category=${encodeURIComponent(category)}`}
+                onClick={() => setIsOpen(false)}
+                className="rounded-2xl border bg-gradient-to-br from-white to-slate-50 p-4 text-center font-semibold shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+              >
+                {category}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
     </>
   );
 };
