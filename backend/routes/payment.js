@@ -8,10 +8,13 @@ import emailService from '../services/emailService.js';
 
 const router = express.Router();
 
+const allowDemoPayments = () =>
+  process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_PAYMENTS === 'true';
+
 const hasRazorpayConfig = () =>
   Boolean(
-    process.env.RAZORPAY_KEY_ID &&
-    process.env.RAZORPAY_KEY_SECRET &&
+    process.env.RAZORPAY_KEY_ID?.trim() &&
+    process.env.RAZORPAY_KEY_SECRET?.trim() &&
     !process.env.RAZORPAY_KEY_ID.includes('your_') &&
     !process.env.RAZORPAY_KEY_SECRET.includes('your_')
   );
@@ -23,13 +26,21 @@ const createRazorpayClient = () =>
   });
 
 const normalizeOrderItems = (items = []) =>
-  items.map((item) => ({
-    productId: mongoose.Types.ObjectId.isValid(item.productId || item._id) ? item.productId || item._id : undefined,
-    name: item.name,
-    price: Number(item.price || 0),
-    quantity: Number(item.quantity || 1),
-    image: item.image,
-  }));
+  items
+    .map((item) => {
+      const rawProductId = item.productId || item._id;
+
+      return {
+        productId: mongoose.Types.ObjectId.isValid(rawProductId)
+          ? rawProductId
+          : undefined,
+        name: String(item.name || '').trim(),
+        price: Math.max(Number(item.price || 0), 0),
+        quantity: Math.max(Number(item.quantity || 1), 1),
+        image: item.image,
+      };
+    })
+    .filter((item) => item.name && item.price >= 0 && item.quantity > 0);
 
 const reserveStock = async (items = []) => {
   await Promise.all(
@@ -50,19 +61,32 @@ const reserveStock = async (items = []) => {
 router.post('/razorpay/create-order', async (req, res) => {
   try {
     const { amount, items, customerInfo } = req.body;
+    const totalAmount = Number(amount);
 
-    if (!amount || !items?.length || !customerInfo?.name) {
+    if (!totalAmount || totalAmount <= 0 || !items?.length || !customerInfo?.name) {
       return res.status(400).json({ message: 'Missing order information' });
     }
 
     const orderItems = normalizeOrderItems(items);
 
+    if (!orderItems.length) {
+      return res.status(400).json({ message: 'Order must contain valid items' });
+    }
+
     if (!hasRazorpayConfig()) {
+      if (!allowDemoPayments()) {
+        return res.status(503).json({
+          success: false,
+          message:
+            'Online payment is not configured. Add Razorpay keys in backend/.env and restart the server, or use Cash on Delivery.',
+        });
+      }
+
       const order = new Order({
         orderId: `DEMO-${Date.now()}`,
         items: orderItems,
         customerInfo,
-        totalAmount: amount,
+        totalAmount,
         paymentMethod: 'razorpay',
         paymentStatus: 'completed',
         orderStatus: 'processing',
@@ -72,20 +96,22 @@ router.post('/razorpay/create-order', async (req, res) => {
       await order.save();
       await reserveStock(orderItems);
 
-      const ownerEmail = process.env.OWNER_EMAIL || 'usdglbalweb@gmail.com';
+      const ownerEmail = process.env.OWNER_EMAIL || 'usdglobalweb@gmail.com';
       await emailService.sendOrderConfirmation(order.toObject(), ownerEmail);
 
       return res.json({
         success: true,
         demo: true,
         orderId: order._id,
+        order,
         message: 'Demo payment completed. Add Razorpay keys in .env for live checkout.',
       });
     }
 
     const razorpay = createRazorpayClient();
+    const amountPaise = Math.round(totalAmount * 100);
     const options = {
-      amount: Math.round(amount * 100), // Amount in paise
+      amount: amountPaise,
       currency: 'INR',
       receipt: `receipt_${Date.now()}`,
       notes: {
@@ -101,7 +127,7 @@ router.post('/razorpay/create-order', async (req, res) => {
       orderId: razorpayOrder.id,
       items: orderItems,
       customerInfo,
-      totalAmount: amount,
+      totalAmount,
       paymentMethod: 'razorpay',
       paymentStatus: 'pending',
     });
@@ -112,7 +138,8 @@ router.post('/razorpay/create-order', async (req, res) => {
       success: true,
       razorpayOrderId: razorpayOrder.id,
       orderId: order._id,
-      amount: amount,
+      amount: totalAmount,
+      amountPaise,
       currency: 'INR',
       keyId: process.env.RAZORPAY_KEY_ID,
     });
@@ -130,13 +157,21 @@ router.post('/razorpay/verify', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Razorpay is not configured' });
     }
 
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !orderId) {
+      return res.status(400).json({ success: false, message: 'Missing payment verification data' });
+    }
+
     const body = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(body.toString())
       .digest('hex');
 
-    const isSignatureValid = expectedSignature === razorpay_signature;
+    const expectedBuffer = Buffer.from(expectedSignature);
+    const actualBuffer = Buffer.from(razorpay_signature);
+    const isSignatureValid =
+      expectedBuffer.length === actualBuffer.length &&
+      crypto.timingSafeEqual(expectedBuffer, actualBuffer);
 
     if (isSignatureValid) {
       const existingOrder = await Order.findById(orderId);
@@ -145,12 +180,20 @@ router.post('/razorpay/verify', async (req, res) => {
         return res.status(404).json({ success: false, message: 'Order not found' });
       }
 
+      if (existingOrder.orderId !== razorpay_order_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment does not match this order',
+        });
+      }
+
       // Update order status
       const order = await Order.findByIdAndUpdate(
         orderId,
         {
           paymentStatus: 'completed',
           orderStatus: 'processing',
+          paymentId: razorpay_payment_id,
           razorpayPaymentId: razorpay_payment_id,
         },
         { new: true }
@@ -160,7 +203,7 @@ router.post('/razorpay/verify', async (req, res) => {
         await reserveStock(order.items);
       }
 
-      const ownerEmail = process.env.OWNER_EMAIL || 'usdglbalweb@gmail.com';
+      const ownerEmail = process.env.OWNER_EMAIL || 'usdglobalweb@gmail.com';
       await emailService.sendOrderConfirmation(order.toObject(), ownerEmail);
 
       res.json({

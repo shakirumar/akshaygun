@@ -8,13 +8,21 @@ import emailService from '../services/emailService.js';
 const router = express.Router();
 
 const normalizeOrderItems = (items = []) =>
-  items.map((item) => ({
-    productId: mongoose.Types.ObjectId.isValid(item.productId || item._id) ? item.productId || item._id : undefined,
-    name: item.name,
-    price: Number(item.price || 0),
-    quantity: Number(item.quantity || 1),
-    image: item.image,
-  }));
+  items
+    .map((item) => {
+      const rawProductId = item.productId || item._id;
+
+      return {
+        productId: mongoose.Types.ObjectId.isValid(rawProductId)
+          ? rawProductId
+          : undefined,
+        name: String(item.name || '').trim(),
+        price: Math.max(Number(item.price || 0), 0),
+        quantity: Math.max(Number(item.quantity || 1), 1),
+        image: item.image,
+      };
+    })
+    .filter((item) => item.name && item.price >= 0 && item.quantity > 0);
 
 const reserveStock = async (items = []) => {
   await Promise.all(
@@ -24,6 +32,21 @@ const reserveStock = async (items = []) => {
         const product = await Product.findById(item.productId);
         if (product) {
           product.stock = Math.max(product.stock - item.quantity, 0);
+          product.inStock = product.stock > 0;
+          await product.save();
+        }
+      })
+  );
+};
+
+const restoreStock = async (items = []) => {
+  await Promise.all(
+    items
+      .filter((item) => item.productId)
+      .map(async (item) => {
+        const product = await Product.findById(item.productId);
+        if (product) {
+          product.stock += item.quantity;
           product.inStock = product.stock > 0;
           await product.save();
         }
@@ -79,21 +102,32 @@ router.get('/:id', async (req, res) => {
 // Create order (COD)
 router.post('/', async (req, res) => {
   const items = normalizeOrderItems(req.body.items);
+  const totalAmount = Number(req.body.totalAmount);
+  const paymentMethod = req.body.paymentMethod || 'cod';
+
+  if (paymentMethod !== 'cod') {
+    return res.status(400).json({
+      message: 'Use the payment gateway endpoint for online payments.',
+    });
+  }
+
+  if (!items.length || !totalAmount || totalAmount <= 0 || !req.body.customerInfo?.name) {
+    return res.status(400).json({ message: 'Missing order information' });
+  }
+
   const order = new Order({
     orderId: `ORD-${Date.now()}`,
     items,
     customerInfo: req.body.customerInfo,
-    totalAmount: req.body.totalAmount,
-    paymentMethod: req.body.paymentMethod || 'cod',
-    paymentStatus: req.body.paymentStatus || 'pending',
+    totalAmount,
+    paymentMethod,
+    paymentStatus: 'pending',
     orderStatus: req.body.orderStatus || 'pending',
   });
 
   try {
     const newOrder = await order.save();
-    if (newOrder.paymentMethod === 'cod') {
-      await reserveStock(items);
-    }
+    await reserveStock(items);
 
     // Send order confirmation email
     const ownerEmail = process.env.OWNER_EMAIL || 'usdglobalweb@gmail.com';
@@ -126,15 +160,25 @@ router.patch('/:id/cancel', async (req, res) => {
       });
     }
 
+    const cancelledPaymentStatus =
+      orderToCancel.paymentStatus === 'completed' ? 'refunded' : 'failed';
+
     // Now update the order
     const updatedOrder = await Order.findOneAndUpdate(
       query,
       {
         orderStatus: 'cancelled',
-        paymentStatus: 'refunded',
+        paymentStatus: cancelledPaymentStatus,
       },
       { new: true }
     );
+
+    if (
+      orderToCancel.paymentMethod === 'cod' ||
+      orderToCancel.paymentStatus === 'completed'
+    ) {
+      await restoreStock(orderToCancel.items);
+    }
 
     // Send cancellation email
     const ownerEmail = process.env.OWNER_EMAIL || 'usdglobalweb@gmail.com';

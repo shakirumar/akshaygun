@@ -12,7 +12,6 @@ import {
   Truck,
   ShieldCheck,
   Clock3,
-  BadgeCheck,
   XCircle,
   Sparkles,
   Phone,
@@ -41,7 +40,6 @@ const OrderSuccess = () => {
   const [copied, setCopied] = useState(false);
 
   const [cancelLoading, setCancelLoading] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [notificationEmail, setNotificationEmail] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationStatus, setNotificationStatus] = useState('');
@@ -99,14 +97,11 @@ const OrderSuccess = () => {
     [order]
   );
 
-  const tax = subtotal * 0.1;
-
   const shipping =
     order?.totalAmount && subtotal
       ? Math.max(
           Number(order.totalAmount) -
-            subtotal -
-            subtotal * 0.1,
+            subtotal,
           0
         )
       : 0;
@@ -122,31 +117,6 @@ const OrderSuccess = () => {
     setCopied(true);
 
     setTimeout(() => setCopied(false), 1500);
-  };
-
-  // PAYMENT CONFIRM
-  const confirmPayment = async () => {
-    try {
-      setPaymentLoading(true);
-
-      const updatedOrder = {
-        ...order,
-        paymentStatus: 'completed',
-      };
-
-      setOrder(updatedOrder);
-
-      localStorage.setItem(
-        `akshaygun-order-${displayOrderId}`,
-        JSON.stringify(updatedOrder)
-      );
-
-      alert('Payment confirmed successfully!');
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setPaymentLoading(false);
-    }
   };
 
   // CANCEL ORDER
@@ -604,12 +574,6 @@ const OrderSuccess = () => {
                 </div>
 
                 <div className="flex justify-between font-semibold text-slate-600">
-                  <span>Tax</span>
-
-                  <span>{formatPrice(tax)}</span>
-                </div>
-
-                <div className="flex justify-between font-semibold text-slate-600">
                   <span>Shipping</span>
 
                   <span>
@@ -627,28 +591,12 @@ const OrderSuccess = () => {
                       {formatPrice(
                         order.totalAmount ||
                           subtotal +
-                            tax +
                             shipping
                       )}
                     </span>
                   </div>
                 </div>
               </div>
-
-              {/* PAYMENT BUTTON */}
-              {!['completed', 'paid'].includes(order.paymentStatus) && (
-                <button
-                  onClick={confirmPayment}
-                  disabled={paymentLoading}
-                  className="mt-8 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-700 to-cyan-700 px-6 py-4 font-black text-white transition hover:scale-[1.02]"
-                >
-                  <BadgeCheck size={20} />
-
-                  {paymentLoading
-                    ? 'Confirming...'
-                    : 'Confirm Payment'}
-                </button>
-              )}
 
               {/* CANCEL BUTTON */}
               {order.orderStatus !== 'cancelled' && (

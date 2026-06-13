@@ -3,11 +3,16 @@ import { sampleProducts } from '../data/sampleProducts.js';
 
 export const autoSeed = async () => {
   try {
+    const forceSeed = process.env.FORCE_SEED === 'true';
+    if (forceSeed) {
+      console.log('FORCE_SEED is active. Clearing product catalog database...');
+      await Product.deleteMany({});
+    }
     const productCount = await Product.countDocuments();
-    if (productCount === 0) {
-      console.log('Product catalog database is empty. Auto-seeding default products...');
+    if (productCount === 0 || forceSeed) {
+      console.log('Auto-seeding product catalog...');
       await Product.insertMany(sampleProducts);
-      console.log('✅ Auto-seeded products successfully.');
+      console.log('✅ Seeding completed successfully.');
     } else {
       console.log(`Product catalog database already has ${productCount} items. Skipping auto-seed.`);
     }

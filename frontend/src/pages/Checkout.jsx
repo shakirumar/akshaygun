@@ -6,9 +6,41 @@ import { API_BASE_URL, formatPrice } from '../data/storeData';
 
 const WHATSAPP_NUMBER = '919560686060'; // Saandeep Khanna – Akshaygun
 
+const RAZORPAY_CHECKOUT_URL = 'https://checkout.razorpay.com/v1/checkout.js';
+
+const loadRazorpayCheckout = () =>
+  new Promise((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const existingScript = document.querySelector(
+      `script[src="${RAZORPAY_CHECKOUT_URL}"]`
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(true), { once: true });
+      existingScript.addEventListener(
+        'error',
+        () => reject(new Error('Unable to load Razorpay checkout.')),
+        { once: true }
+      );
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = RAZORPAY_CHECKOUT_URL;
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error('Unable to load Razorpay checkout.'));
+    document.body.appendChild(script);
+  });
+
 const Checkout = ({ items, onClearCart }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cod');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -101,6 +133,77 @@ const Checkout = ({ items, onClearCart }) => {
     window.open(url, '_blank');
   };
 
+  const handleOnlinePayment = async () => {
+    try {
+      await loadRazorpayCheckout();
+
+      const response = await axios.post(`${API_BASE_URL}/payment/razorpay/create-order`, {
+        amount: orderSummary.total,
+        items,
+        customerInfo: formData,
+      });
+
+      if (response.data.demo) {
+        saveOrderBackup(response.data.order);
+        onClearCart();
+        alert('Demo online payment completed successfully!');
+        navigate(`/order-success/${response.data.orderId}`);
+        return;
+      }
+
+      const options = {
+        key: response.data.keyId,
+        amount: response.data.amountPaise || Math.round(response.data.amount * 100),
+        currency: response.data.currency || 'INR',
+        name: 'Akshaygun Pharma',
+        description: 'Payment for your pharmaceutical order',
+        order_id: response.data.razorpayOrderId,
+        handler: async function (rzpResponse) {
+          setLoading(true);
+          try {
+            const verifyRes = await axios.post(`${API_BASE_URL}/payment/razorpay/verify`, {
+              razorpay_order_id: rzpResponse.razorpay_order_id,
+              razorpay_payment_id: rzpResponse.razorpay_payment_id,
+              razorpay_signature: rzpResponse.razorpay_signature,
+              orderId: response.data.orderId,
+            });
+            if (verifyRes.data.success) {
+              saveOrderBackup(verifyRes.data.order);
+              onClearCart();
+              navigate(`/order-success/${verifyRes.data.order._id || response.data.orderId}`);
+            } else {
+              alert('Payment verification failed.');
+            }
+          } catch (err) {
+            alert('Payment verification error: ' + (err.response?.data?.message || err.message));
+          } finally {
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        theme: {
+          color: '#10210f',
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (failure) => {
+        alert(failure.error?.description || 'Payment failed. Please try again or choose Cash on Delivery.');
+      });
+      rzp.open();
+    } catch (error) {
+      alert(
+        error.response?.data?.message ||
+          error.message ||
+          'Unable to initiate online payment. Please choose Cash on Delivery.'
+      );
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -111,7 +214,11 @@ const Checkout = ({ items, onClearCart }) => {
 
     setLoading(true);
     try {
-      await handleCODPayment();
+      if (paymentMethod === 'cod') {
+        await handleCODPayment();
+      } else {
+        await handleOnlinePayment();
+      }
     } catch (error) {
       alert(error.response?.data?.message || error.message || 'Unable to place order. Please try again.');
     } finally {
@@ -188,7 +295,7 @@ const Checkout = ({ items, onClearCart }) => {
             </label>
           </section>
 
-          {/* Payment Method – COD only */}
+          {/* Payment Method */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#10210f] text-[#b9f45f]">
@@ -197,14 +304,53 @@ const Checkout = ({ items, onClearCart }) => {
               <h2 className="text-2xl font-black text-slate-950">Payment method</h2>
             </div>
 
-            <div className="flex gap-4 rounded-2xl border border-emerald-700 bg-emerald-50 p-4">
-              <PackageCheck size={23} className="mt-0.5 shrink-0 text-emerald-800" />
-              <span>
-                <span className="block font-black text-slate-950">Cash on Delivery (COD)</span>
-                <span className="mt-1 block text-sm font-semibold text-slate-600">
-                  Place your order now and pay when the package arrives at your doorstep. 100% safe.
+            <div className="grid gap-4 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cod')}
+                className={`flex gap-4 rounded-2xl border p-4 text-left transition duration-200 ${
+                  paymentMethod === 'cod'
+                    ? 'border-emerald-700 bg-emerald-50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <PackageCheck
+                  size={23}
+                  className={`mt-0.5 shrink-0 ${
+                    paymentMethod === 'cod' ? 'text-emerald-800' : 'text-slate-500'
+                  }`}
+                />
+                <span>
+                  <span className="block font-black text-slate-950">Cash on Delivery (COD)</span>
+                  <span className="mt-1 block text-sm font-semibold text-slate-600">
+                    Pay with cash or card upon delivery.
+                  </span>
                 </span>
-              </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('razorpay')}
+                className={`flex gap-4 rounded-2xl border p-4 text-left transition duration-200 ${
+                  paymentMethod === 'razorpay'
+                    ? 'border-emerald-700 bg-emerald-50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div
+                  className={`mt-0.5 shrink-0 text-xl font-bold ${
+                    paymentMethod === 'razorpay' ? 'text-emerald-800' : 'text-slate-500'
+                  }`}
+                >
+                  💳
+                </div>
+                <span>
+                  <span className="block font-black text-slate-950">Online Payment</span>
+                  <span className="mt-1 block text-sm font-semibold text-slate-600">
+                    Pay securely using UPI, Card, or Netbanking.
+                  </span>
+                </span>
+              </button>
             </div>
           </section>
         </div>
@@ -242,14 +388,14 @@ const Checkout = ({ items, onClearCart }) => {
             <span>{formatPrice(orderSummary.total)}</span>
           </div>
 
-          {/* Place COD Order */}
+          {/* Place Order */}
           <button
             type="submit"
             disabled={loading}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#10210f] px-6 py-4 font-black text-white transition hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-70"
           >
             {loading && <Loader className="animate-spin" size={19} />}
-            Place COD Order
+            {paymentMethod === 'cod' ? 'Place COD Order' : 'Pay & Place Order'}
           </button>
 
           {/* WhatsApp Order Button */}

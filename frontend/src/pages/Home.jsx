@@ -29,10 +29,10 @@ const promiseItems = [
 ];
 
 const categories = [
-  { title: 'Pain Relief', text: 'Fast-acting pain relievers and anti-inflammatories.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.28.jpeg') },
-  { title: 'Antibiotics', text: 'FDA-approved bacterial infection treatments.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.30.jpeg') },
-  { title: 'Cardiac Care', text: 'Heart health and blood pressure management.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.40.jpeg') },
-  { title: 'Respiratory Support', text: 'Asthma and respiratory disease medications.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.45.jpeg') },
+  { title: 'Sexual Health', text: 'Trusted treatments for men\'s health and wellness.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.28.jpeg') },
+  { title: 'Oral Jelly', text: 'Fast-acting oral jelly formulations in assorted flavours.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.30.jpeg') },
+  { title: 'Anti-Parasitic', text: 'FDA-approved ivermectin and anti-parasitic solutions.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.45.jpeg') },
+  { title: 'Hormone Therapy', text: 'Hormone replacement and testosterone capsules.', image: getProductImagePath('WhatsApp Image 2026-05-24 at 17.01.38.jpeg') },
 ];
 
 const featureTiles = [

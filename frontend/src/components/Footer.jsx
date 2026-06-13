@@ -1,4 +1,4 @@
-﻿import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Globe,
   Share2,
@@ -53,12 +53,12 @@ const quickLinks = [
 ];
 
 const categories = [
-  { label: 'Antibiotics', to: '/products' },
-  { label: 'Pain Relief', to: '/products' },
-  { label: 'Cardiology', to: '/products' },
-  { label: 'Respiratory', to: '/products' },
-  { label: 'Vitamins', to: '/products' },
-  { label: 'Anti-Allergic', to: '/products' },
+  { label: 'Sexual Health', to: '/products?category=Sexual%20Health' },
+  { label: 'Oral Jelly', to: '/products?category=Oral%20Jelly' },
+  { label: 'Anti-Parasitic', to: '/products?category=Anti-Parasitic' },
+  { label: 'Hormone Therapy', to: '/products?category=Hormone%20Therapy' },
+  { label: 'Tablets', to: '/products?category=Tablets' },
+  { label: 'Women Health', to: '/products?category=Women%20Health' },
 ];
 
 const payments = ['UPI', 'Cards', 'COD', 'Razorpay'];

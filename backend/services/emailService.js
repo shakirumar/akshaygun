@@ -58,7 +58,7 @@ const emailService = {
     return testTransporterPromise;
   },
 
-  getOwnerEmail: () => process.env.OWNER_EMAIL?.trim() || 'usdglbalweb@gmail.com',
+  getOwnerEmail: () => process.env.OWNER_EMAIL?.trim() || 'usdglobalweb@gmail.com',
 
   // Format order details for email
   formatOrderForEmail: (order) => {

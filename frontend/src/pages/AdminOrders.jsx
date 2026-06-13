@@ -337,6 +337,7 @@ const AdminOrders = () => {
                       <option value="pending">Pending</option>
                       <option value="completed">Completed</option>
                       <option value="failed">Failed</option>
+                      <option value="refunded">Refunded</option>
                     </select>
                   </label>
 

@@ -10,6 +10,7 @@ import {
   ArrowRight,
   CheckCircle2
 } from 'lucide-react';
+import logo from '../assets/logo.jpeg';
 
 const values = [
   {
@@ -99,8 +100,8 @@ const About = () => {
               <div className="absolute -top-5 -left-5 h-full w-full rounded-[2rem] bg-yellow-300/20"></div>
 
               <img
-                src="https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=900&q=80"
-                alt="Wellness"
+                src="/WhatsApp Image 2026-05-24 at 18.17.59 (1).jpeg"
+                alt="Akshaygun Pharmaceutical Products"
                 className="relative h-[500px] w-full rounded-[2rem] object-cover shadow-2xl"
               />
             </div>
@@ -114,9 +115,9 @@ const About = () => {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&w=900&q=80"
-                alt="About Akshaygun"
-                className="rounded-[2rem] shadow-2xl"
+                src={logo}
+                alt="Akshaygun Pharma Logo"
+                className="rounded-[2rem] shadow-2xl w-full"
               />
 
               <div className="absolute -bottom-8 -right-8 rounded-3xl bg-white p-6 shadow-xl border border-gray-100">

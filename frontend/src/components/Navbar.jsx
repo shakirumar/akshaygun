@@ -27,12 +27,12 @@ const navItems = [
 ];
 
 const quickCategories = [
-  'Antibiotics',
-  'Pain Relief',
-  'Cardiology',
-  'Respiratory',
-  'Vitamins',
-  'Anti-Allergic',
+  'Sexual Health',
+  'Oral Jelly',
+  'Anti-Parasitic',
+  'Hormone Therapy',
+  'Tablets',
+  'Women Health',
 ];
 
 const Navbar = ({ cartCount, wishlistCount }) => {
