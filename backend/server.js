@@ -200,12 +200,7 @@ app.use('/api/pharma', pharmaRoutes);
 app.use('/api/auth', authRoutes);
 
 // Root route
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Akshaygun Backend Running'
-  });
-});
+
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -238,7 +233,12 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log('🚀 Server running on port ' + PORT);
+  connectWithRetry()
+    .then(async () => {
+      try { await autoSeed(); console.log('✅ Seeded'); }
+      catch (e) { console.error('Seed failed', e.message); }
+    })
+    .catch(e => console.error('MongoDB failed:', e?.message));
 });
